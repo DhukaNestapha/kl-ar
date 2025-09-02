@@ -60,12 +60,36 @@
     .modal p { font-size:15px; margin:10px 0 16px; }
     .modal button { background:#2b91ff; color:#fff; border:0; border-radius:9999px; padding:10px 18px; font-weight:700; cursor:pointer;
                     box-shadow:0 6px 18px rgba(43,145,255,.35); }
+
+    /* === Subtle loader (centered spinner + text) === */
+    .loader {
+      position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+      background:linear-gradient(180deg, rgba(0,0,0,.6), rgba(0,0,0,.3));
+      z-index:5; transition:opacity .25s ease;
+    }
+    .loader.hide { opacity:0; pointer-events:none; }
+    .spinner {
+      width:28px; height:28px; border-radius:50%;
+      border:3px solid rgba(255,255,255,.25); border-top-color:#fff;
+      animation:spin 1s linear infinite; margin-right:10px;
+    }
+    .loading-text { color:#fff; opacity:.9; font-size:14px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .spinner { animation:none; border-top-color:rgba(255,255,255,.6); }
+    }
   </style>
 </head>
 <body>
+  <!-- Loader -->
+  <div id="loader" class="loader" role="status" aria-live="polite" aria-label="Memuatkan poster">
+    <div class="spinner" aria-hidden="true"></div>
+    <div class="loading-text">Memuatkan…</div>
+  </div>
+
   <!-- Poster -->
   <div id="stage" class="stage">
-    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=14" alt="Poster Menara Berkembar PETRONAS" />
+    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=15" alt="Poster Menara Berkembar PETRONAS" />
   </div>
 
   <!-- Reset zoom -->
@@ -97,7 +121,7 @@
   const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';
   const HOME = BASE + '/';
 
-  // Detect (robust iOS check: covers UA & platform)
+  // Detect
   const ua = navigator.userAgent || navigator.vendor || window.opera;
   const plat = navigator.platform || '';
   const isIOS = /iPhone|iPad|iPod/i.test(ua) || /iPhone|iPad|iPod/i.test(plat);
@@ -110,13 +134,27 @@
   const sceneViewerIntent = 'intent://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) + '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS') +
     '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=' + enc(sceneViewerHttps) + ';end;';
 
-  // UI
+  // UI elements
   const beginBtn = document.getElementById('beginArBtn');
   const view3dBtn = document.getElementById('view3dBtn');
   const iosModal = document.getElementById('iosModal');
   const okBtn = document.getElementById('okBtn');
+  const poster = document.getElementById('poster');
+  const loader = document.getElementById('loader');
 
-  // Wire actions
+  // ===== Loader: hide when poster is ready (with safety timeout) =====
+  function hideLoader(){ loader.classList.add('hide'); setTimeout(()=>loader.style.display='none', 300); }
+  if (poster.complete) {
+    // If image was cached, complete is true — still give the browser one frame
+    requestAnimationFrame(hideLoader);
+  } else {
+    poster.addEventListener('load', hideLoader);
+    poster.addEventListener('error', hideLoader); // don't block UX if poster fails
+    // safety: auto-hide after 4s in case of flaky networks
+    setTimeout(hideLoader, 4000);
+  }
+
+  // ===== AR actions =====
   if (isIOS) {
     // iOS: show instruction modal first; launch Quick Look only after OK
     beginBtn.addEventListener('click', (e) => {
@@ -125,7 +163,6 @@
     });
     okBtn.addEventListener('click', () => {
       iosModal.classList.remove('visible');
-      // Launch Quick Look via a real rel="ar" link
       const a = document.createElement('a');
       a.rel = 'ar';
       a.href = USDZ;
@@ -140,7 +177,7 @@
       window.location.assign(target);
     });
   } else {
-    // Desktop/unknown: take to 3D page
+    // Desktop/unknown: go to 3D page
     beginBtn.addEventListener('click', () => window.location.assign(HOME));
   }
 
@@ -148,7 +185,6 @@
 
   // ===== Pinch-to-zoom & pan =====
   const stage  = document.getElementById('stage');
-  const poster = document.getElementById('poster');
   const reset  = document.getElementById('reset');
   let scale = 1, minScale = 1, maxScale = 6;
   let tx = 0, ty = 0;

@@ -8,7 +8,7 @@
     :root { color-scheme: dark; --footer-h: 96px; }
     html, body { height:100%; margin:0; background:#000; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; overflow:hidden; }
 
-    /* Poster stage */
+    /* Poster stage (no crop, zoomable) */
     .stage { position:fixed; left:0; top:0; right:0; height:calc(100vh - var(--footer-h)); background:#000; touch-action:none; overflow:hidden; }
     .poster {
       position:absolute; left:50%; top:50%;
@@ -19,7 +19,7 @@
       will-change:transform; user-select:none; -webkit-user-drag:none; pointer-events:none;
     }
 
-    /* Footer */
+    /* Footer actions (never cover poster) */
     .footer {
       position:fixed; left:0; right:0; bottom:0; height:var(--footer-h);
       display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
@@ -34,16 +34,11 @@
     .actions { display:flex; gap:12px; align-items:center; justify-content:center; }
 
     /* Buttons */
-    .btn, .btn-link {
-      appearance:none; border:0; padding:12px 18px; border-radius:9999px; cursor:pointer; font-weight:700;
-      background:#2b91ff; color:#fff; box-shadow:0 8px 22px rgba(43,145,255,.35);
-      text-decoration:none; display:inline-block;
-    }
-    .link {
-      background:transparent; color:#eaf1ff; opacity:.9; text-decoration:underline; font-weight:600; padding:8px 0; border:0;
-    }
+    .btn { appearance:none; border:0; padding:12px 18px; border-radius:9999px; cursor:pointer; font-weight:700;
+           background:#2b91ff; color:#fff; box-shadow:0 8px 22px rgba(43,145,255,.35); }
+    .link { background:transparent; color:#eaf1ff; opacity:.9; text-decoration:underline; font-weight:600; padding:8px 0; border:0; }
 
-    /* Reset */
+    /* Reset zoom */
     .reset {
       position:fixed; right:12px; top:calc(12px + env(safe-area-inset-top, 0px));
       z-index:2; font-size:12px; color:#cfe2ff; background:rgba(0,0,0,.35);
@@ -51,9 +46,9 @@
       cursor:pointer;
     }
 
-    /* Instruction modal */
+    /* Instruction modal (iOS) */
     .modal {
-      position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:6;
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:9999;
       background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
     }
     .modal.visible { display:flex; }
@@ -63,22 +58,21 @@
     }
     .modal svg { width:40px; height:40px; margin-bottom:8px; fill:#fff; filter:drop-shadow(0 0 8px rgba(43,145,255,.5)); }
     .modal p { font-size:15px; margin:10px 0 16px; }
-    .modal button {
-      background:#2b91ff; color:#fff; border:0; border-radius:9999px; padding:10px 18px; font-weight:700; cursor:pointer;
-      box-shadow:0 6px 18px rgba(43,145,255,.35);
-    }
+    .modal button { background:#2b91ff; color:#fff; border:0; border-radius:9999px; padding:10px 18px; font-weight:700; cursor:pointer;
+                    box-shadow:0 6px 18px rgba(43,145,255,.35); }
   </style>
 </head>
 <body>
   <!-- Poster -->
   <div id="stage" class="stage">
-    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=13" alt="Poster Menara Berkembar PETRONAS" />
+    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=14" alt="Poster Menara Berkembar PETRONAS" />
   </div>
 
+  <!-- Reset zoom -->
   <div id="reset" class="reset">Tetap Semula</div>
 
   <!-- Modal for iOS instruction -->
-  <div id="iosModal" class="modal">
+  <div id="iosModal" class="modal" aria-modal="true" role="dialog" aria-label="Arahan AR iPhone">
     <div class="modal-card">
       <!-- Cube icon (SVG) -->
       <svg viewBox="0 0 24 24"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5zm0 2.18L18.82 7 12 10.82 5.18 7 12 4.18zM5 8.74l6 3.46v6.06l-6-3.34V8.74zm8 9.52v-6.06l6-3.46v6.12l-6 3.4z"/></svg>
@@ -90,7 +84,10 @@
   <!-- Footer -->
   <footer class="footer">
     <div class="hint">Tekan di sini untuk melihat model 3D</div>
-    <div class="actions" id="actions"></div>
+    <div class="actions">
+      <button id="beginArBtn" class="btn">Mula AR</button>
+      <button id="view3dBtn" class="link">Lihat 3D</button>
+    </div>
   </footer>
 
 <script>
@@ -100,10 +97,11 @@
   const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';
   const HOME = BASE + '/';
 
-  // Detect
+  // Detect (robust iOS check: covers UA & platform)
   const ua = navigator.userAgent || navigator.vendor || window.opera;
+  const plat = navigator.platform || '';
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || /iPhone|iPad|iPod/i.test(plat);
   const isAndroid = /Android/i.test(ua);
-  const isIOS     = /iPhone|iPad|iPod/i.test(ua);
   const isChrome  = /Chrome\/\d+/i.test(ua) && !/Edg\//i.test(ua);
 
   // Scene Viewer (Android)
@@ -112,67 +110,46 @@
   const sceneViewerIntent = 'intent://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) + '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS') +
     '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=' + enc(sceneViewerHttps) + ';end;';
 
-  // UI Elements
-  const actions = document.getElementById('actions');
+  // UI
+  const beginBtn = document.getElementById('beginArBtn');
+  const view3dBtn = document.getElementById('view3dBtn');
   const iosModal = document.getElementById('iosModal');
   const okBtn = document.getElementById('okBtn');
 
+  // Wire actions
   if (isIOS) {
-    // Show button that triggers modal instead of direct rel="ar"
-    const begin = document.createElement('button');
-    begin.className = 'btn';
-    begin.textContent = 'Mula AR';
-    begin.addEventListener('click', () => {
+    // iOS: show instruction modal first; launch Quick Look only after OK
+    beginBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       iosModal.classList.add('visible');
     });
-    actions.appendChild(begin);
-
-    const view3d = document.createElement('button');
-    view3d.className = 'link';
-    view3d.textContent = 'Lihat 3D';
-    view3d.addEventListener('click', () => window.location.assign(HOME));
-    actions.appendChild(view3d);
-
     okBtn.addEventListener('click', () => {
       iosModal.classList.remove('visible');
-      // Launch Quick Look after OK
-      const link = document.createElement('a');
-      link.setAttribute('rel','ar');
-      link.setAttribute('href',USDZ);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      // Launch Quick Look via a real rel="ar" link
+      const a = document.createElement('a');
+      a.rel = 'ar';
+      a.href = USDZ;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     });
-
   } else if (isAndroid) {
-    const begin = document.createElement('button');
-    begin.className = 'btn';
-    begin.textContent = 'Mula AR';
-    begin.addEventListener('click', () => {
+    // Android: go straight to AR
+    beginBtn.addEventListener('click', () => {
       const target = isChrome ? sceneViewerIntent : sceneViewerHttps;
       window.location.assign(target);
     });
-    actions.appendChild(begin);
-
-    const view3d = document.createElement('button');
-    view3d.className = 'link';
-    view3d.textContent = 'Lihat 3D';
-    view3d.addEventListener('click', () => window.location.assign(HOME));
-    actions.appendChild(view3d);
-
   } else {
-    const view3d = document.createElement('button');
-    view3d.className = 'btn';
-    view3d.textContent = 'Lihat 3D';
-    view3d.addEventListener('click', () => window.location.assign(HOME));
-    actions.appendChild(view3d);
+    // Desktop/unknown: take to 3D page
+    beginBtn.addEventListener('click', () => window.location.assign(HOME));
   }
 
-  // ===== Poster zoom/pan (same as before) =====
+  view3dBtn.addEventListener('click', () => window.location.assign(HOME));
+
+  // ===== Pinch-to-zoom & pan =====
   const stage  = document.getElementById('stage');
   const poster = document.getElementById('poster');
   const reset  = document.getElementById('reset');
-
   let scale = 1, minScale = 1, maxScale = 6;
   let tx = 0, ty = 0;
   let startDist = 0, startScale = 1;

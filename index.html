@@ -4,54 +4,55 @@
   <meta charset="utf-8" />
   <title>Petronas Twin Towers – Begin AR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <noscript><meta http-equiv="refresh" content="15; url=https://dhukanestapha.github.io/kl-ar/"></noscript>
   <style>
     :root { color-scheme: dark; }
-    html, body { height:100%; margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0b0d12; color:#eaf1ff; }
-    .hero {
-      position:relative; height:100%; display:flex; align-items:center; justify-content:center; overflow:hidden;
-      background:#0b0d12 url("../assets/Add%20a%20headline.jpg") center/cover no-repeat; /* portrait poster */
+    html, body { height:100%; margin:0; background:#0b0d12; color:#eaf1ff; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+    .wrap { position:relative; height:100%; overflow:hidden; }
+    .poster {
+      position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;
+      background:#0b0d12;
     }
-    .scrim { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.65)); }
+    .scrim { position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.65)); }
     .card {
-      position:relative; z-index:1; max-width:720px; width:calc(100% - 32px);
+      position:relative; z-index:1; max-width:720px; width:calc(100% - 32px); margin:0 auto;
+      top:50%; transform:translateY(-50%);
       background:rgba(20,24,34,.82); border:1px solid #23293a; border-radius:16px; padding:16px; text-align:center;
-      box-shadow:0 10px 30px rgba(0,0,0,.35); backdrop-filter: blur(6px);
+      box-shadow:0 10px 30px rgba(0,0,0,.35); backdrop-filter:blur(6px);
     }
     h1 { margin:0 0 8px; font-size:clamp(20px, 3.2vw, 28px); }
-    p { margin:6px 0; opacity:.9 }
+    p { margin:6px 0; opacity:.9; }
     .actions { margin-top:12px; display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
     button {
-      appearance:none; border:0; padding:12px 16px; border-radius:12px; cursor:pointer; font-weight:700; letter-spacing:.2px;
+      appearance:none; border:0; padding:12px 16px; border-radius:12px; cursor:pointer; font-weight:700;
       background:#2b91ff; color:white; box-shadow:0 6px 18px rgba(43,145,255,.35);
     }
     button.secondary { background:#23293a; color:#eaf1ff; box-shadow:none; }
     .note { font-size:12px; opacity:.75; margin-top:8px; }
-    a, a:visited { color:#8ec7ff; text-decoration:none; }
+    .hidden { display:none; }
   </style>
 </head>
 <body>
-  <main class="hero" role="main" aria-label="KL Twin Towers AR Poster">
-    <div class="scrim" aria-hidden="true"></div>
-    <div class="card">
+  <main class="wrap">
+    <img id="poster" class="poster" src="../assets/poster.jpg" alt="Petronas Twin Towers poster" />
+    <div class="scrim"></div>
+
+    <div id="ui" class="card">
       <h1>Petronas Twin Towers</h1>
       <p>View the towers in your space using your phone’s AR.</p>
       <div class="actions">
-        <button id="beginArBtn" aria-label="Begin AR">Begin AR</button>
-        <button id="view3dBtn" class="secondary" aria-label="View 3D on page">View 3D</button>
+        <button id="beginArBtn">Begin AR</button>
+        <button id="view3dBtn" class="secondary">View 3D</button>
       </div>
-      <div class="note">iPhone uses Quick Look (USDZ). Android uses Scene Viewer (GLB).</div>
+      <div class="note">iPhone → Quick Look (USDZ). Android → Scene Viewer (GLB).</div>
     </div>
   </main>
 
 <script>
-  // --- Config (case-sensitive!) ---
   const BASE = 'https://dhukanestapha.github.io/kl-ar';
-  const GLB  = BASE + '/assets/petronas_twin_tower.glb';   // Android
-  const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';  // iOS
-  const HOMEPAGE = BASE + '/'; // your <model-viewer> page
+  const GLB  = BASE + '/assets/petronas_twin_tower.glb';
+  const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';
+  const HOMEPAGE = BASE + '/';
 
-  // Scene Viewer links
   const enc = encodeURIComponent;
   const sceneViewerHttps = 'https://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) +
                            '&mode=ar_preferred&title=' + enc('Petronas Twin Towers');
@@ -61,7 +62,6 @@
                             'action=android.intent.action.VIEW;S.browser_fallback_url=' + enc(sceneViewerHttps) + ';end;';
   const quickLookUrl = USDZ;
 
-  // Device sniffing
   const ua = navigator.userAgent || navigator.vendor || window.opera;
   const isAndroid = /Android/i.test(ua);
   const isIOS     = /iPhone|iPad|iPod/i.test(ua);
@@ -70,7 +70,7 @@
   function targetForDevice() {
     if (isIOS) return quickLookUrl;
     if (isAndroid) return isChrome ? sceneViewerIntent : sceneViewerHttps;
-    return HOMEPAGE; // desktop/unknown
+    return HOMEPAGE;
   }
 
   document.getElementById('beginArBtn').addEventListener('click', () => {

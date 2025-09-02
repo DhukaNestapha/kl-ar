@@ -1,103 +1,205 @@
 <!doctype html>
-<html lang="en">
+<html lang="ms">
 <head>
   <meta charset="utf-8" />
-  <title>Petronas Twin Towers – Begin AR</title>
+  <title>Menara Berkembar PETRONAS – Mulakan AR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { color-scheme: dark; }
     html, body {
-      height:100%; margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-      background:#0b0d12; overflow:hidden; /* no scroll; poster is full bleed */
+      height:100%; margin:0; background:#000;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      overflow:hidden;
     }
-    /* Poster as full-screen background (keeps text out of the way) */
+
+    /* Pentas zum */
+    .stage {
+      position:fixed; inset:0;
+      background:#000;
+      touch-action:none; /* benarkan pinch/pan tersuai */
+      overflow:hidden;
+    }
+
+    /* Poster (akan dizum & di-seret) */
     .poster {
-      position:fixed; inset:0; width:100%; height:100%;
-      object-fit:cover; object-position:center; background:#0b0d12;
-    }
-    /* Bottom gradient for legibility under the button */
-    .bottom-scrim {
-      position:fixed; left:0; right:0; bottom:0; height:30vh;
-      background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.75) 100%);
+      position:absolute; left:50%; top:50%;
+      transform:translate(-50%, -50%) scale(1);
+      transform-origin:center center;
+      max-width:100%; max-height:100%;
+      object-fit:contain; object-position:center;
+      will-change:transform;
+      user-select:none; -webkit-user-drag:none;
       pointer-events:none;
     }
-    /* Floating pill CTA (minimal footprint, safe-area aware) */
+
+    /* Scrim bawah untuk keterbacaan butang */
+    .bottom-scrim {
+      position:fixed; left:0; right:0; bottom:0; height:30vh;
+      background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.8) 100%);
+      pointer-events:none;
+    }
+
+    /* Kumpulan CTA di bawah */
     .cta {
       position:fixed; left:50%;
       bottom:calc(16px + env(safe-area-inset-bottom, 0px));
       transform:translateX(-50%);
-      display:flex; gap:10px; align-items:center; justify-content:center;
-      z-index:2;
+      display:flex; flex-direction:column; align-items:center; gap:6px;
+      z-index:3; text-align:center;
+    }
+    /* Teks arahan dengan glow lembut */
+    .hint {
+      font-size:13px; color:#ffffff; opacity:.95; margin-bottom:4px;
+      text-shadow:
+        0 0 6px rgba(255,255,255,.55),
+        0 0 12px rgba(43,145,255,.35);
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
     }
     .btn {
       appearance:none; border:0; padding:12px 18px; border-radius:9999px; cursor:pointer; font-weight:700;
-      background:#2b91ff; color:#fff;
-      box-shadow:0 8px 22px rgba(43,145,255,.35), 0 1px 0 rgba(255,255,255,.08) inset;
+      background:#2b91ff; color:#fff; box-shadow:0 8px 22px rgba(43,145,255,.35);
     }
     .link {
       background:transparent; color:#eaf1ff; opacity:.9; text-decoration:underline; font-weight:600;
       padding:8px 0; border:0;
     }
-    /* (Optional) tiny title top-left without blocking poster */
-    .badge {
-      position:fixed; left:12px; top:calc(12px + env(safe-area-inset-top, 0px));
-      font-size:12px; letter-spacing:.3px; color:#cfe2ff; background:rgba(0,0,0,.35);
+
+    /* Butang Reset kecil di atas */
+    .reset {
+      position:fixed; right:12px; top:calc(12px + env(safe-area-inset-top, 0px));
+      z-index:3; font-size:12px; color:#cfe2ff; background:rgba(0,0,0,.35);
       border:1px solid rgba(255,255,255,.12); border-radius:9999px; padding:6px 10px; backdrop-filter:blur(4px);
+      cursor:pointer;
     }
   </style>
 </head>
 <body>
-  <!-- Full-bleed poster image -->
-  <img class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=4" alt="Petronas Twin Towers poster" />
-
-  <!-- Subtle title (can remove if you want zero chrome) -->
-  <div class="badge">Petronas Twin Towers</div>
-
-  <!-- Legibility scrim behind the CTA only -->
-  <div class="bottom-scrim" aria-hidden="true"></div>
-
-  <!-- Minimal controls: Begin AR + View 3D as link -->
-  <div class="cta" role="group" aria-label="Actions">
-    <button id="beginArBtn" class="btn" aria-label="Begin AR">Begin AR</button>
-    <button id="view3dBtn" class="link" aria-label="View 3D on page">View 3D</button>
+  <!-- Pentas zoom/pan -->
+  <div id="stage" class="stage" aria-label="Poster boleh dizum">
+    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=8" alt="Poster Menara Berkembar PETRONAS" />
   </div>
 
+  <!-- Scrim untuk keterbacaan -->
+  <div class="bottom-scrim" aria-hidden="true"></div>
+
+  <!-- CTA + arahan -->
+  <div class="cta" role="group" aria-label="Tindakan">
+    <div class="hint">Tekan di sini untuk melihat model 3D</div>
+    <button id="beginArBtn" class="btn" aria-label="Mulakan AR">Mula AR</button>
+    <button id="view3dBtn" class="link" aria-label="Lihat model 3D pada halaman">Lihat 3D</button>
+  </div>
+
+  <div id="reset" class="reset" title="Tetapkan semula zum">Reset</div>
+
 <script>
-  // --- Config (case-sensitive paths) ---
+  // --- Konfigurasi (case-sensitive) ---
   const BASE = 'https://dhukanestapha.github.io/kl-ar';
   const GLB  = BASE + '/assets/petronas_twin_tower.glb';   // Android
   const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';  // iOS
-  const HOME = BASE + '/';                                  // your <model-viewer> page
+  const HOME = BASE + '/';                                  // Halaman <model-viewer> (pilihan)
 
-  // Android Scene Viewer links
+  // Pautan Scene Viewer (Android)
   const enc = encodeURIComponent;
   const sceneViewerHttps = 'https://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) +
-                           '&mode=ar_preferred&title=' + enc('Petronas Twin Towers');
+                           '&mode=ar_preferred&title=' + enc('Menara Berkembar PETRONAS');
   const sceneViewerIntent = 'intent://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) +
-                            '&mode=ar_preferred&title=' + enc('Petronas Twin Towers') +
+                            '&mode=ar_preferred&title=' + enc('Menara Berkembar PETRONAS') +
                             '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;' +
                             'action=android.intent.action.VIEW;S.browser_fallback_url=' + enc(sceneViewerHttps) + ';end;';
-  const quickLookUrl = USDZ;
+  const quickLookUrl = USDZ; // iOS Quick Look
 
-  // Device sniff
+  // Kesan peranti
   const ua = navigator.userAgent || navigator.vendor || window.opera;
   const isAndroid = /Android/i.test(ua);
   const isIOS     = /iPhone|iPad|iPod/i.test(ua);
   const isChrome  = /Chrome\/\d+/i.test(ua) && !/Edg\//i.test(ua);
 
+  // Sasaran laluan (terus ke AR — tidak paparkan 3D dahulu)
   function targetForDevice() {
-    if (isIOS) return quickLookUrl;
-    if (isAndroid) return isChrome ? sceneViewerIntent : sceneViewerHttps;
-    return HOME; // desktop/unknown
+    if (isIOS) return quickLookUrl;                         // iOS → Quick Look
+    if (isAndroid) return isChrome ? sceneViewerIntent      // Android Chrome → Intent
+                                   : sceneViewerHttps;      // Android lain → HTTPS
+    return HOME; // Desktop/unknown → laman 3D
   }
 
-  // Button actions
+  // Tindakan butang
   document.getElementById('beginArBtn').addEventListener('click', () => {
-    window.location.assign(targetForDevice());
+    window.location.assign(targetForDevice()); // TERUS ke AR
   });
   document.getElementById('view3dBtn').addEventListener('click', () => {
-    window.location.assign(HOME);
+    window.location.assign(HOME); // pilihan: lihat 3D dahulu
   });
+
+  // --- Logik zum & seret (pinch, pan, double-tap, wheel) ---
+  const stage  = document.getElementById('stage');
+  const poster = document.getElementById('poster');
+  const reset  = document.getElementById('reset');
+
+  let scale = 1, minScale = 1, maxScale = 6;
+  let tx = 0, ty = 0;
+  let startDist = 0, startScale = 1;
+  let lastTapTime = 0;
+  const pointers = new Map();
+
+  function applyTransform() {
+    poster.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(${scale})`;
+  }
+  function getDistance(p1, p2) { return Math.hypot(p2.x-p1.x, p2.y-p1.y); }
+  function clampPan() {
+    const pad = 200; // had mudah supaya imej tak "terbang"
+    tx = Math.max(-pad, Math.min(pad, tx));
+    ty = Math.max(-pad, Math.min(pad, ty));
+  }
+
+  stage.addEventListener('pointerdown', e => {
+    stage.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!pointers.has(e.pointerId)) return;
+    const prev = pointers.get(e.pointerId);
+    pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+
+    if (pointers.size === 2) {
+      const [a,b] = Array.from(pointers.values());
+      const dist = getDistance(a,b);
+      if (!startDist) { startDist = dist; startScale = scale; }
+      scale = Math.max(minScale, Math.min(maxScale, startScale * (dist/startDist)));
+    } else if (pointers.size === 1 && scale > 1) {
+      tx += e.clientX - prev.x;
+      ty += e.clientY - prev.y;
+      clampPan();
+    }
+    applyTransform();
+  });
+  function endPointer(e) { pointers.delete(e.pointerId); if (pointers.size<2) startDist=0; }
+  stage.addEventListener('pointerup', endPointer);
+  stage.addEventListener('pointercancel', endPointer);
+  stage.addEventListener('pointerleave', endPointer);
+
+  // Dwi-tap: zum masuk/keluar
+  stage.addEventListener('click', e => {
+    const now = Date.now();
+    if (now - lastTapTime < 300) {
+      if (scale <= 1.01) { scale = 2; } else { scale = 1; tx = 0; ty = 0; }
+      applyTransform();
+    }
+    lastTapTime = now;
+  });
+
+  // Roda tetikus (desktop)
+  stage.addEventListener('wheel', e => {
+    e.preventDefault();
+    const delta = -Math.sign(e.deltaY) * 0.2;
+    scale = Math.max(minScale, Math.min(maxScale, scale + delta));
+    applyTransform();
+  }, { passive:false });
+
+  // Reset
+  function resetView(){ scale=1; tx=0; ty=0; applyTransform(); }
+  reset.addEventListener('click', resetView);
+
+  applyTransform();
 </script>
 </body>
 </html>

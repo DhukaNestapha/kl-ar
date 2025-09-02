@@ -33,7 +33,7 @@
     }
     .actions { display:flex; gap:12px; align-items:center; justify-content:center; }
 
-    /* Buttons / links styled the same */
+    /* Buttons / links */
     .btn, .btn-link {
       appearance:none; border:0; padding:12px 18px; border-radius:9999px; cursor:pointer; font-weight:700;
       background:#2b91ff; color:#fff; box-shadow:0 8px 22px rgba(43,145,255,.35); text-decoration:none; display:inline-block;
@@ -50,45 +50,57 @@
       cursor:pointer;
     }
 
-    /* In-app browser warning (iOS) */
-    .iab {
-      position:fixed; left:12px; right:12px; top:calc(12px + env(safe-area-inset-top, 0px));
-      z-index:3; background:rgba(0,0,0,.75); color:#fff; font-size:13px;
-      border:1px solid rgba(255,255,255,.18); border-radius:12px; padding:10px 12px; display:none;
-      backdrop-filter:blur(6px);
+    /* iOS instructional overlay (shows after Mula AR tapped on iOS) */
+    .overlay {
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:5;
+      background:rgba(0,0,0,.55); backdrop-filter:blur(2px);
     }
-    .iab button { margin-left:8px; padding:6px 10px; border-radius:9999px; border:0; background:#2b91ff; color:#fff; font-weight:700; }
+    .overlay.visible { display:flex; }
+    .overlay-card {
+      max-width:90%; text-align:center; color:#fff;
+      background:rgba(10,14,22,.9); border:1px solid rgba(255,255,255,.15);
+      border-radius:16px; padding:16px 14px;
+      box-shadow:0 12px 28px rgba(0,0,0,.45);
+    }
+    .overlay-icon {
+      font-size:28px; line-height:1; margin-bottom:8px;
+      filter: drop-shadow(0 0 10px rgba(43,145,255,.5));
+    }
+    .overlay-text {
+      font-size:14px; opacity:.95;
+      text-shadow:0 0 6px rgba(255,255,255,.45), 0 0 10px rgba(43,145,255,.25);
+    }
+
     .hidden { display:none !important; }
   </style>
 </head>
 <body>
   <!-- Zoom / pan poster -->
   <div id="stage" class="stage" aria-label="Poster boleh dizum">
-    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=11" alt="Poster Menara Berkembar PETRONAS" />
+    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=12" alt="Poster Menara Berkembar PETRONAS" />
   </div>
 
   <!-- Reset zoom -->
   <div id="reset" class="reset" title="Tetap semula zum">Tetap Semula</div>
 
-  <!-- iOS in-app browser notice -->
-  <div id="iab" class="iab">
-    Buka dalam <strong>Safari</strong> untuk melancarkan AR dengan lebih lancar.
-    <button id="openSafari">Buka</button>
-  </div>
-
-  <!-- iOS Quick Look link (visible only on iOS; real rel="ar" tap) -->
+  <!-- iOS Quick Look link (real rel="ar" trigger) -->
   <a id="iosArLink" class="btn-link hidden" rel="ar" href="https://dhukanestapha.github.io/kl-ar/assets/PETRONAS_TWIN_TOWER.usdz">Mula AR</a>
+
+  <!-- Instructional overlay for iOS -->
+  <div id="iosOverlay" class="overlay" role="dialog" aria-live="polite" aria-label="Arahan iOS">
+    <div class="overlay-card" onclick="this.parentElement.classList.remove('visible')">
+      <div class="overlay-icon">🛸</div>
+      <div class="overlay-text">
+        Dalam Quick Look, <strong>ketik ikon AR</strong> untuk hidupkan kamera.
+      </div>
+    </div>
+  </div>
 
   <!-- Footer actions -->
   <footer class="footer" role="group" aria-label="Tindakan">
     <div class="hint">Tekan di sini untuk melihat model 3D</div>
-    <div class="actions">
-      <!-- Android/desktop button (JS). Hidden on iOS. -->
-      <button id="beginArBtn" class="btn">Mula AR</button>
-      <!-- iOS rel="ar" anchor is inserted here visually on iOS -->
-      <button id="view3dBtn" class="link">Lihat 3D</button>
-    </div>
-    <div class="hint" style="font-size:12px; opacity:.8;">
+    <div class="actions" id="actions"></div>
+    <div class="hint" style="font-size:12px; opacity:.9;">
       iPhone: Quick Look akan dibuka — ketik ikon <strong>AR</strong> untuk hidupkan kamera.<br/>
       Android: Scene Viewer dibuka terus dalam mod AR.
     </div>
@@ -101,58 +113,68 @@
   const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';  // iOS
   const HOME = BASE + '/';
 
-  // Scene Viewer (Android) — AR only
-  const enc = encodeURIComponent;
-  const sceneViewerHttps = 'https://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) + '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS');
-  const sceneViewerIntent = 'intent://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) + '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS') +
-    '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=' + enc(sceneViewerHttps) + ';end;';
-
-  // Detect platform + in-app browsers
+  // Detect platform + browsers
   const ua = navigator.userAgent || navigator.vendor || window.opera;
   const isAndroid = /Android/i.test(ua);
   const isIOS     = /iPhone|iPad|iPod/i.test(ua);
   const isChrome  = /Chrome\/\d+/i.test(ua) && !/Edg\//i.test(ua);
 
-  // Common iOS in-app browsers (Instagram, Facebook, TikTok, Twitter/X, Line)
-  const isInApp = /(FBAN|FBAV|FB_IAB|Instagram|Line|TikTok|Twitter)/i.test(ua);
+  // Android Scene Viewer (AR-only)
+  const enc = encodeURIComponent;
+  const sceneViewerHttps = 'https://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) + '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS');
+  const sceneViewerIntent = 'intent://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) + '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS') +
+    '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=' + enc(sceneViewerHttps) + ';end;';
 
-  // Wire up UI per platform
+  // Build actions per platform
+  const actions = document.getElementById('actions');
   const iosLink = document.getElementById('iosArLink');
-  const beginBtn = document.getElementById('beginArBtn');
+  const iosOverlay = document.getElementById('iosOverlay');
 
   if (isIOS) {
-    // Show the real rel="ar" anchor as the primary button
+    // Show real rel="ar" as the main CTA
     iosLink.classList.remove('hidden');
-    beginBtn.classList.add('hidden');
+    actions.appendChild(iosLink);
 
-    // Move the iOS link into the actions row (so it appears next to Lihat 3D)
-    const actions = document.querySelector('.actions');
-    actions.insertBefore(iosLink, actions.firstChild);
+    const view3d = document.createElement('button');
+    view3d.id = 'view3dBtn';
+    view3d.className = 'link';
+    view3d.textContent = 'Lihat 3D';
+    view3d.addEventListener('click', () => window.location.assign(HOME));
+    actions.appendChild(view3d);
 
-    // In-app browser hint (helps escape to Safari)
-    if (isInApp) {
-      const iab = document.getElementById('iab');
-      const openSafari = document.getElementById('openSafari');
-      iab.style.display = 'block';
-      openSafari.addEventListener('click', () => {
-        // Try opening USDZ in a new tab; many in-app browsers will hand off to Safari
-        window.open(USDZ, '_blank');
-      });
-    }
+    // When user taps Mula AR, show a short overlay reminder as Quick Look opens
+    iosLink.addEventListener('click', () => {
+      iosOverlay.classList.add('visible');
+      setTimeout(() => iosOverlay.classList.remove('visible'), 2000);
+      // Note: Quick Look opens immediately; overlay may flash briefly (intended coaching)
+    });
   } else if (isAndroid) {
-    // Android: JS button launches AR-only Scene Viewer
-    beginBtn.addEventListener('click', () => {
+    const begin = document.createElement('button');
+    begin.id = 'beginArBtn';
+    begin.className = 'btn';
+    begin.textContent = 'Mula AR';
+    begin.addEventListener('click', () => {
       const target = isChrome ? sceneViewerIntent : sceneViewerHttps;
       window.location.assign(target);
     });
+    actions.appendChild(begin);
+
+    const view3d = document.createElement('button');
+    view3d.id = 'view3dBtn';
+    view3d.className = 'link';
+    view3d.textContent = 'Lihat 3D';
+    view3d.addEventListener('click', () => window.location.assign(HOME));
+    actions.appendChild(view3d);
   } else {
-    // Desktop/unknown → go to 3D page
-    beginBtn.addEventListener('click', () => window.location.assign(HOME));
+    const view3d = document.createElement('button');
+    view3d.id = 'view3dBtn';
+    view3d.className = 'btn';
+    view3d.textContent = 'Lihat 3D';
+    view3d.addEventListener('click', () => window.location.assign(HOME));
+    actions.appendChild(view3d);
   }
 
-  document.getElementById('view3dBtn').addEventListener('click', () => window.location.assign(HOME));
-
-  // ===== Pinch-to-zoom & pan (unchanged) =====
+  // ===== Pinch-to-zoom & pan =====
   const stage  = document.getElementById('stage');
   const poster = document.getElementById('poster');
   const reset  = document.getElementById('reset');

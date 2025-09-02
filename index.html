@@ -2,59 +2,52 @@
 <html lang="ms">
 <head>
   <meta charset="utf-8" />
-  <title>Menara Berkembar PETRONAS – Mulakan AR</title>
+  <title>Menara Berkembar PETRONAS – AR</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root { color-scheme: dark; }
+    :root { color-scheme: dark; --footer-h: 92px; }
     html, body {
       height:100%; margin:0; background:#000;
       font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
       overflow:hidden;
     }
 
-    /* Pentas zum */
+    /* ===== Poster stage (no cropping, zoomable) ===== */
     .stage {
-      position:fixed; inset:0;
+      position:fixed; left:0; top:0; right:0;
+      height:calc(100vh - var(--footer-h));     /* reserve space for footer */
       background:#000;
-      touch-action:none; /* benarkan pinch/pan tersuai */
+      touch-action:none;                         /* enable custom pinch/pan */
       overflow:hidden;
     }
 
-    /* Poster (akan dizum & di-seret) */
     .poster {
       position:absolute; left:50%; top:50%;
       transform:translate(-50%, -50%) scale(1);
       transform-origin:center center;
       max-width:100%; max-height:100%;
-      object-fit:contain; object-position:center;
+      object-fit:contain; object-position:center; /* 👈 show whole poster */
       will-change:transform;
-      user-select:none; -webkit-user-drag:none;
-      pointer-events:none;
+      user-select:none; -webkit-user-drag:none; pointer-events:none;
     }
 
-    /* Scrim bawah untuk keterbacaan butang */
-    .bottom-scrim {
-      position:fixed; left:0; right:0; bottom:0; height:30vh;
-      background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.8) 100%);
-      pointer-events:none;
+    /* ===== Footer (buttons live here; never cover poster) ===== */
+    .footer {
+      position:fixed; left:0; right:0; bottom:0; height:var(--footer-h);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+      background:linear-gradient(180deg, rgba(0,0,0,.0) 0%, rgba(0,0,0,.65) 30%, rgba(0,0,0,.85) 100%);
+      padding:10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+      text-align:center;
     }
 
-    /* Kumpulan CTA di bawah */
-    .cta {
-      position:fixed; left:50%;
-      bottom:calc(16px + env(safe-area-inset-bottom, 0px));
-      transform:translateX(-50%);
-      display:flex; flex-direction:column; align-items:center; gap:6px;
-      z-index:3; text-align:center;
-    }
-    /* Teks arahan dengan glow lembut */
     .hint {
-      font-size:13px; color:#ffffff; opacity:.95; margin-bottom:4px;
-      text-shadow:
-        0 0 6px rgba(255,255,255,.55),
-        0 0 12px rgba(43,145,255,.35);
+      font-size:13px; color:#fff; opacity:.95;
+      text-shadow: 0 0 6px rgba(255,255,255,.55), 0 0 12px rgba(43,145,255,.35);
       filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
     }
+
+    .actions { display:flex; gap:12px; align-items:center; justify-content:center; }
+
     .btn {
       appearance:none; border:0; padding:12px 18px; border-radius:9999px; cursor:pointer; font-weight:700;
       background:#2b91ff; color:#fff; box-shadow:0 8px 22px rgba(43,145,255,.35);
@@ -64,49 +57,54 @@
       padding:8px 0; border:0;
     }
 
-    /* Butang Reset kecil di atas */
+    /* Small "Tetap Semula" */
     .reset {
       position:fixed; right:12px; top:calc(12px + env(safe-area-inset-top, 0px));
-      z-index:3; font-size:12px; color:#cfe2ff; background:rgba(0,0,0,.35);
+      z-index:2; font-size:12px; color:#cfe2ff; background:rgba(0,0,0,.35);
       border:1px solid rgba(255,255,255,.12); border-radius:9999px; padding:6px 10px; backdrop-filter:blur(4px);
       cursor:pointer;
     }
   </style>
 </head>
 <body>
-  <!-- Pentas zoom/pan -->
+  <!-- Pentas zum/seret (poster tidak bertindih dengan butang) -->
   <div id="stage" class="stage" aria-label="Poster boleh dizum">
-    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=8" alt="Poster Menara Berkembar PETRONAS" />
+    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=9" alt="Poster Menara Berkembar PETRONAS" />
   </div>
 
-  <!-- Scrim untuk keterbacaan -->
-  <div class="bottom-scrim" aria-hidden="true"></div>
+  <div id="reset" class="reset" title="Tetap semula zum">Tetap Semula</div>
 
-  <!-- CTA + arahan -->
-  <div class="cta" role="group" aria-label="Tindakan">
+  <!-- Footer: arahan + butang. Tidak menutupi poster. -->
+  <footer class="footer" role="group" aria-label="Tindakan">
     <div class="hint">Tekan di sini untuk melihat model 3D</div>
-    <button id="beginArBtn" class="btn" aria-label="Mulakan AR">Mula AR</button>
-    <button id="view3dBtn" class="link" aria-label="Lihat model 3D pada halaman">Lihat 3D</button>
-  </div>
-
-  <div id="reset" class="reset" title="Tetapkan semula zum">Reset</div>
+    <div class="actions">
+      <button id="beginArBtn" class="btn" aria-label="Mulakan Realiti Terimbuh">Mula AR</button>
+      <button id="view3dBtn" class="link" aria-label="Lihat model 3D pada halaman">Lihat 3D</button>
+    </div>
+    <div class="hint" style="font-size:12px; opacity:.8;">
+      iPhone: Quick Look akan dibuka — ketik ikon <strong>AR</strong> untuk hidupkan kamera.<br/>
+      Android: Scene Viewer dibuka terus dalam mod AR.
+    </div>
+  </footer>
 
 <script>
-  // --- Konfigurasi (case-sensitive) ---
+  // ===== Konfigurasi (case-sensitive) =====
   const BASE = 'https://dhukanestapha.github.io/kl-ar';
   const GLB  = BASE + '/assets/petronas_twin_tower.glb';   // Android
   const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';  // iOS
   const HOME = BASE + '/';                                  // Halaman <model-viewer> (pilihan)
 
-  // Pautan Scene Viewer (Android)
+  // Scene Viewer (Android) — paksa AR sahaja
   const enc = encodeURIComponent;
   const sceneViewerHttps = 'https://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) +
-                           '&mode=ar_preferred&title=' + enc('Menara Berkembar PETRONAS');
+                           '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS'); // 👈 ar_only
   const sceneViewerIntent = 'intent://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) +
-                            '&mode=ar_preferred&title=' + enc('Menara Berkembar PETRONAS') +
+                            '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS') +
                             '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;' +
                             'action=android.intent.action.VIEW;S.browser_fallback_url=' + enc(sceneViewerHttps) + ';end;';
-  const quickLookUrl = USDZ; // iOS Quick Look
+
+  // Quick Look (iOS) — Apple perlukan satu ketikan pada ikon AR (tak boleh auto-buka kamera)
+  const quickLookUrl = USDZ; // boleh tambah parameter seperti #allowsContentScaling=1 jika mahu
 
   // Kesan peranti
   const ua = navigator.userAgent || navigator.vendor || window.opera;
@@ -114,23 +112,22 @@
   const isIOS     = /iPhone|iPad|iPod/i.test(ua);
   const isChrome  = /Chrome\/\d+/i.test(ua) && !/Edg\//i.test(ua);
 
-  // Sasaran laluan (terus ke AR — tidak paparkan 3D dahulu)
   function targetForDevice() {
-    if (isIOS) return quickLookUrl;                         // iOS → Quick Look
-    if (isAndroid) return isChrome ? sceneViewerIntent      // Android Chrome → Intent
-                                   : sceneViewerHttps;      // Android lain → HTTPS
-    return HOME; // Desktop/unknown → laman 3D
+    if (isIOS)     return quickLookUrl;                       // iOS → Quick Look (kemudian ketik ikon AR)
+    if (isAndroid) return isChrome ? sceneViewerIntent        // Android Chrome → Intent (lebih mantap)
+                                   : sceneViewerHttps;        // Android lain → HTTPS
+    return HOME;                                              // Desktop/unknown → halaman 3D
   }
 
-  // Tindakan butang
+  // ===== Tindakan butang =====
   document.getElementById('beginArBtn').addEventListener('click', () => {
-    window.location.assign(targetForDevice()); // TERUS ke AR
+    window.location.assign(targetForDevice()); // Terus ke AR laluan platform
   });
   document.getElementById('view3dBtn').addEventListener('click', () => {
-    window.location.assign(HOME); // pilihan: lihat 3D dahulu
+    window.location.assign(HOME);
   });
 
-  // --- Logik zum & seret (pinch, pan, double-tap, wheel) ---
+  // ===== Zum/seret (pinch, pan, double-tap, roda) =====
   const stage  = document.getElementById('stage');
   const poster = document.getElementById('poster');
   const reset  = document.getElementById('reset');
@@ -146,7 +143,7 @@
   }
   function getDistance(p1, p2) { return Math.hypot(p2.x-p1.x, p2.y-p1.y); }
   function clampPan() {
-    const pad = 200; // had mudah supaya imej tak "terbang"
+    const pad = 200; // sedikit had supaya imej tak "hilang"
     tx = Math.max(-pad, Math.min(pad, tx));
     ty = Math.max(-pad, Math.min(pad, ty));
   }
@@ -187,7 +184,7 @@
     lastTapTime = now;
   });
 
-  // Roda tetikus (desktop)
+  // Roda (desktop)
   stage.addEventListener('wheel', e => {
     e.preventDefault();
     const delta = -Math.sign(e.deltaY) * 0.2;
@@ -195,7 +192,7 @@
     applyTransform();
   }, { passive:false });
 
-  // Reset
+  // Tetap semula
   function resetView(){ scale=1; tx=0; ty=0; applyTransform(); }
   reset.addEventListener('click', resetView);
 

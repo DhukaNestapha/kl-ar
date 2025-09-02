@@ -11,27 +11,24 @@
       font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
       overflow:hidden;
     }
-
-    /* ===== Poster stage (no cropping, zoomable) ===== */
+    /* Poster stage (no cropping, zoomable) */
     .stage {
       position:fixed; left:0; top:0; right:0;
-      height:calc(100vh - var(--footer-h));     /* reserve space for footer */
+      height:calc(100vh - var(--footer-h));
       background:#000;
-      touch-action:none;                         /* enable custom pinch/pan */
+      touch-action:none;
       overflow:hidden;
     }
-
     .poster {
       position:absolute; left:50%; top:50%;
       transform:translate(-50%, -50%) scale(1);
       transform-origin:center center;
       max-width:100%; max-height:100%;
-      object-fit:contain; object-position:center; /* 👈 show whole poster */
+      object-fit:contain; object-position:center;
       will-change:transform;
       user-select:none; -webkit-user-drag:none; pointer-events:none;
     }
-
-    /* ===== Footer (buttons live here; never cover poster) ===== */
+    /* Footer */
     .footer {
       position:fixed; left:0; right:0; bottom:0; height:var(--footer-h);
       display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
@@ -39,15 +36,12 @@
       padding:10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
       text-align:center;
     }
-
     .hint {
       font-size:13px; color:#fff; opacity:.95;
       text-shadow: 0 0 6px rgba(255,255,255,.55), 0 0 12px rgba(43,145,255,.35);
       filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));
     }
-
     .actions { display:flex; gap:12px; align-items:center; justify-content:center; }
-
     .btn {
       appearance:none; border:0; padding:12px 18px; border-radius:9999px; cursor:pointer; font-weight:700;
       background:#2b91ff; color:#fff; box-shadow:0 8px 22px rgba(43,145,255,.35);
@@ -56,25 +50,28 @@
       background:transparent; color:#eaf1ff; opacity:.9; text-decoration:underline; font-weight:600;
       padding:8px 0; border:0;
     }
-
-    /* Small "Tetap Semula" */
     .reset {
       position:fixed; right:12px; top:calc(12px + env(safe-area-inset-top, 0px));
       z-index:2; font-size:12px; color:#cfe2ff; background:rgba(0,0,0,.35);
       border:1px solid rgba(255,255,255,.12); border-radius:9999px; padding:6px 10px; backdrop-filter:blur(4px);
       cursor:pointer;
     }
+    /* Hide the iOS rel="ar" link from view */
+    .hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
   </style>
 </head>
 <body>
-  <!-- Pentas zum/seret (poster tidak bertindih dengan butang) -->
+  <!-- Zoom/pan poster -->
   <div id="stage" class="stage" aria-label="Poster boleh dizum">
-    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=9" alt="Poster Menara Berkembar PETRONAS" />
+    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=10" alt="Poster Menara Berkembar PETRONAS" />
   </div>
 
   <div id="reset" class="reset" title="Tetap semula zum">Tetap Semula</div>
 
-  <!-- Footer: arahan + butang. Tidak menutupi poster. -->
+  <!-- iOS Quick Look trigger (Apple-recommended) -->
+  <a id="iosArLink" class="hidden" rel="ar" href="https://dhukanestapha.github.io/kl-ar/assets/PETRONAS_TWIN_TOWER.usdz"></a>
+
+  <!-- Footer actions -->
   <footer class="footer" role="group" aria-label="Tindakan">
     <div class="hint">Tekan di sini untuk melihat model 3D</div>
     <div class="actions">
@@ -88,46 +85,46 @@
   </footer>
 
 <script>
-  // ===== Konfigurasi (case-sensitive) =====
+  // ===== Konfigurasi =====
   const BASE = 'https://dhukanestapha.github.io/kl-ar';
   const GLB  = BASE + '/assets/petronas_twin_tower.glb';   // Android
   const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';  // iOS
-  const HOME = BASE + '/';                                  // Halaman <model-viewer> (pilihan)
+  const HOME = BASE + '/';
 
-  // Scene Viewer (Android) — paksa AR sahaja
+  // Scene Viewer (Android) — AR only
   const enc = encodeURIComponent;
   const sceneViewerHttps = 'https://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) +
-                           '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS'); // 👈 ar_only
+                           '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS');
   const sceneViewerIntent = 'intent://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) +
                             '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS') +
                             '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;' +
                             'action=android.intent.action.VIEW;S.browser_fallback_url=' + enc(sceneViewerHttps) + ';end;';
 
-  // Quick Look (iOS) — Apple perlukan satu ketikan pada ikon AR (tak boleh auto-buka kamera)
-  const quickLookUrl = USDZ; // boleh tambah parameter seperti #allowsContentScaling=1 jika mahu
-
-  // Kesan peranti
+  // Device detect
   const ua = navigator.userAgent || navigator.vendor || window.opera;
   const isAndroid = /Android/i.test(ua);
   const isIOS     = /iPhone|iPad|iPod/i.test(ua);
   const isChrome  = /Chrome\/\d+/i.test(ua) && !/Edg\//i.test(ua);
 
-  function targetForDevice() {
-    if (isIOS)     return quickLookUrl;                       // iOS → Quick Look (kemudian ketik ikon AR)
-    if (isAndroid) return isChrome ? sceneViewerIntent        // Android Chrome → Intent (lebih mantap)
-                                   : sceneViewerHttps;        // Android lain → HTTPS
-    return HOME;                                              // Desktop/unknown → halaman 3D
-  }
-
-  // ===== Tindakan butang =====
+  // Button actions
   document.getElementById('beginArBtn').addEventListener('click', () => {
-    window.location.assign(targetForDevice()); // Terus ke AR laluan platform
+    if (isIOS) {
+      // Use native Quick Look trigger
+      document.getElementById('iosArLink').click();
+    } else if (isAndroid) {
+      // Prefer Chrome intent; fallback to https
+      const target = isChrome ? sceneViewerIntent : sceneViewerHttps;
+      window.location.assign(target);
+    } else {
+      window.location.assign(HOME);
+    }
   });
+
   document.getElementById('view3dBtn').addEventListener('click', () => {
     window.location.assign(HOME);
   });
 
-  // ===== Zum/seret (pinch, pan, double-tap, roda) =====
+  // ===== Pinch-to-zoom & pan =====
   const stage  = document.getElementById('stage');
   const poster = document.getElementById('poster');
   const reset  = document.getElementById('reset');
@@ -137,65 +134,37 @@
   let startDist = 0, startScale = 1;
   let lastTapTime = 0;
   const pointers = new Map();
+  function applyTransform(){ poster.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(${scale})`; }
+  function getDistance(p1,p2){ return Math.hypot(p2.x-p1.x, p2.y-p1.y); }
+  function clampPan(){ const pad=200; tx=Math.max(-pad,Math.min(pad,tx)); ty=Math.max(-pad,Math.min(pad,ty)); }
 
-  function applyTransform() {
-    poster.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(${scale})`;
-  }
-  function getDistance(p1, p2) { return Math.hypot(p2.x-p1.x, p2.y-p1.y); }
-  function clampPan() {
-    const pad = 200; // sedikit had supaya imej tak "hilang"
-    tx = Math.max(-pad, Math.min(pad, tx));
-    ty = Math.max(-pad, Math.min(pad, ty));
-  }
-
-  stage.addEventListener('pointerdown', e => {
-    stage.setPointerCapture(e.pointerId);
-    pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
-  });
+  stage.addEventListener('pointerdown', e => { stage.setPointerCapture(e.pointerId); pointers.set(e.pointerId,{x:e.clientX,y:e.clientY}); });
   stage.addEventListener('pointermove', e => {
     if (!pointers.has(e.pointerId)) return;
     const prev = pointers.get(e.pointerId);
-    pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
-
-    if (pointers.size === 2) {
-      const [a,b] = Array.from(pointers.values());
-      const dist = getDistance(a,b);
-      if (!startDist) { startDist = dist; startScale = scale; }
-      scale = Math.max(minScale, Math.min(maxScale, startScale * (dist/startDist)));
-    } else if (pointers.size === 1 && scale > 1) {
-      tx += e.clientX - prev.x;
-      ty += e.clientY - prev.y;
-      clampPan();
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if (pointers.size===2){
+      const [a,b]=Array.from(pointers.values()); const dist=getDistance(a,b);
+      if (!startDist){ startDist=dist; startScale=scale; }
+      scale=Math.max(minScale,Math.min(maxScale,startScale*(dist/startDist)));
+    } else if (pointers.size===1 && scale>1){
+      tx+=e.clientX-prev.x; ty+=e.clientY-prev.y; clampPan();
     }
     applyTransform();
   });
-  function endPointer(e) { pointers.delete(e.pointerId); if (pointers.size<2) startDist=0; }
+  function endPointer(e){ pointers.delete(e.pointerId); if (pointers.size<2) startDist=0; }
   stage.addEventListener('pointerup', endPointer);
   stage.addEventListener('pointercancel', endPointer);
   stage.addEventListener('pointerleave', endPointer);
 
-  // Dwi-tap: zum masuk/keluar
   stage.addEventListener('click', e => {
-    const now = Date.now();
-    if (now - lastTapTime < 300) {
-      if (scale <= 1.01) { scale = 2; } else { scale = 1; tx = 0; ty = 0; }
-      applyTransform();
-    }
-    lastTapTime = now;
+    const now=Date.now();
+    if (now-lastTapTime<300){ if (scale<=1.01){ scale=2; } else { scale=1; tx=0; ty=0; } applyTransform(); }
+    lastTapTime=now;
   });
-
-  // Roda (desktop)
-  stage.addEventListener('wheel', e => {
-    e.preventDefault();
-    const delta = -Math.sign(e.deltaY) * 0.2;
-    scale = Math.max(minScale, Math.min(maxScale, scale + delta));
-    applyTransform();
-  }, { passive:false });
-
-  // Tetap semula
+  stage.addEventListener('wheel', e => { e.preventDefault(); const d=-Math.sign(e.deltaY)*0.2; scale=Math.max(minScale,Math.min(maxScale,scale+d)); applyTransform(); }, {passive:false});
   function resetView(){ scale=1; tx=0; ty=0; applyTransform(); }
   reset.addEventListener('click', resetView);
-
   applyTransform();
 </script>
 </body>

@@ -8,8 +8,9 @@
     :root { color-scheme: dark; }
     html, body { height:100%; margin:0; background:#0b0d12; color:#eaf1ff; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
 
-    /* Fullscreen poster shell */
     .wrap { position:relative; height:100%; overflow:hidden; }
+
+    /* Fullscreen poster image */
     .poster {
       position:absolute; inset:0; width:100%; height:100%;
       object-fit:cover; object-position:center; background:#0b0d12;
@@ -17,12 +18,12 @@
     }
     .poster.ready { opacity:1; }
 
-    /* Invisible full-screen “tap catcher” shown initially */
+    /* Invisible full-screen “tap catcher” so poster shows first */
     .tap-catcher {
       position:absolute; inset:0; border:0; background:transparent; cursor:pointer;
     }
 
-    /* UI panel (hidden until poster-first experience completes) */
+    /* UI panel (hidden until we reveal it) */
     .card {
       position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
       max-width:720px; width:calc(100% - 32px);
@@ -32,8 +33,6 @@
     }
     .card.visible { opacity:1; pointer-events:auto; }
 
-    h1 { margin:0 0 8px; font-size:clamp(20px, 3.2vw, 28px); }
-    p { margin:6px 0; opacity:.9; }
     .actions { margin-top:12px; display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
     button {
       appearance:none; border:0; padding:12px 16px; border-radius:12px; cursor:pointer; font-weight:700;
@@ -41,17 +40,24 @@
     }
     button.secondary { background:#23293a; color:#eaf1ff; box-shadow:none; }
     .note { font-size:12px; opacity:.75; margin-top:8px; }
+
+    /* Visible diagnostics box */
+    .diag {
+      position:absolute; bottom:10px; left:10px; right:10px; z-index:2;
+      background:#0f1320; border:1px solid #23293a; border-radius:10px; padding:8px 10px; font-size:12px; opacity:.85;
+    }
+    .ok { color:#b6f0c4; } .bad { color:#ffb3b3; }
   </style>
 </head>
 <body>
   <main class="wrap" role="main" aria-label="KL Twin Towers AR Poster">
-    <!-- 1) Poster fills the screen; loads first -->
-    <img id="poster" class="poster" src="../assets/poster.jpg" alt="Petronas Twin Towers poster" />
+    <!-- 1) Poster fills the screen; absolute URL to avoid any relative-path issues -->
+    <img id="poster" class="poster" alt="Petronas Twin Towers poster" />
 
-    <!-- 2) Fullscreen invisible tap layer (removed after first tap or timeout) -->
+    <!-- 2) Invisible full-screen tap catcher so the poster shows first -->
     <button id="tapCatcher" class="tap-catcher" aria-label="Show Begin AR options"></button>
 
-    <!-- 3) UI only appears after poster-first moment -->
+    <!-- 3) Buttons appear only after first tap (or short fallback delay) -->
     <div id="ui" class="card" aria-hidden="true">
       <h1>Petronas Twin Towers</h1>
       <p>View the towers in your space using your phone’s AR.</p>
@@ -61,24 +67,27 @@
       </div>
       <div class="note">iPhone → Quick Look (USDZ) • Android → Scene Viewer (GLB)</div>
     </div>
+
+    <!-- 4) Diagnostics (you can remove this once it works) -->
+    <div class="diag" id="diag">Checking poster…</div>
   </main>
 
 <script>
-  // --- Config (case-sensitive paths!) ---
-  const BASE = 'https://dhukanestapha.github.io/kl-ar';
-  const GLB  = BASE + '/assets/petronas_twin_tower.glb';   // Android
-  const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';  // iOS
-  const HOMEPAGE = BASE + '/';                              // your <model-viewer> page
+  // --- Config (CASE-SENSITIVE) ---
+  const BASE   = 'https://dhukanestapha.github.io/kl-ar';
+  const POSTER = BASE + '/assets/poster.jpg?v=2'; // cache-busting query in case your phone cached a 404
+  const GLB    = BASE + '/assets/petronas_twin_tower.glb';
+  const USDZ   = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';
+  const HOME   = BASE + '/';
 
-  // Android Scene Viewer links
+  // Scene Viewer links (Android)
   const enc = encodeURIComponent;
-  const sceneViewerHttps = 'https://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB)
-                         + '&mode=ar_preferred&title=' + enc('Petronas Twin Towers');
-  const sceneViewerIntent = 'intent://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB)
-                          + '&mode=ar_preferred&title=' + enc('Petronas Twin Towers')
-                          + '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;'
-                          + 'action=android.intent.action.VIEW;S.browser_fallback_url='
-                          + enc(sceneViewerHttps) + ';end;';
+  const sceneViewerHttps = 'https://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) +
+                           '&mode=ar_preferred&title=' + enc('Petronas Twin Towers');
+  const sceneViewerIntent = 'intent://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) +
+                            '&mode=ar_preferred&title=' + enc('Petronas Twin Towers') +
+                            '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;' +
+                            'action=android.intent.action.VIEW;S.browser_fallback_url=' + enc(sceneViewerHttps) + ';end;';
   const quickLookUrl = USDZ;
 
   // Device sniff
@@ -90,38 +99,64 @@
   function targetForDevice() {
     if (isIOS) return quickLookUrl;
     if (isAndroid) return isChrome ? sceneViewerIntent : sceneViewerHttps;
-    return HOMEPAGE; // desktop/unknown
+    return HOME;
   }
 
-  // Poster-first behavior
+  // DOM refs
   const posterEl = document.getElementById('poster');
-  const ui = document.getElementById('ui');
-  const tapCatcher = document.getElementById('tapCatcher');
+  const ui       = document.getElementById('ui');
+  const tap      = document.getElementById('tapCatcher');
+  const diag     = document.getElementById('diag');
 
-  // Fade poster in once it actually loads (prevents flash)
-  function onPosterReady() { posterEl.classList.add('ready'); }
-  if (posterEl.complete) { onPosterReady(); } else {
-    posterEl.addEventListener('load', onPosterReady);
-    posterEl.addEventListener('error', onPosterReady); // still proceed even if poster fails
+  // Try a HEAD first to confirm the poster exists
+  async function probePoster(url) {
+    try {
+      let res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+      if (!res.ok) {
+        // fallback GET in case HEAD is blocked
+        res = await fetch(url, { method: 'GET', cache: 'no-store' });
+      }
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 
-  // Show UI only after first tap (true “poster first”)
+  (async () => {
+    const ok = await probePoster(POSTER);
+    if (ok) {
+      diag.innerHTML = '<span class="ok">Poster OK</span>: ' + POSTER;
+      posterEl.src = POSTER;
+    } else {
+      diag.innerHTML = '<span class="bad">Poster NOT FOUND</span>: ' + POSTER +
+        '<br>Check: repo path must be <code>kl-ar/assets/poster.jpg</code> (exact case).';
+      // still let the flow continue (no poster)
+    }
+  })();
+
+  // Fade poster in once it actually loads
+  function showPoster() { posterEl.classList.add('ready'); }
+  posterEl.addEventListener('load', showPoster);
+  posterEl.addEventListener('error', () => {
+    diag.innerHTML += '<br><span class="bad">Failed to load poster image</span>';
+  });
+
+  // Reveal buttons after the first tap (true poster-first),
+  // plus a gentle auto-reveal after 1.5s so users aren’t stuck
   function revealUI() {
-    tapCatcher.remove();              // disable the invisible layer
-    ui.classList.add('visible');      // fade in the buttons
+    if (tap.parentNode) tap.parentNode.removeChild(tap);
+    ui.classList.add('visible');
     ui.setAttribute('aria-hidden', 'false');
   }
-  tapCatcher.addEventListener('click', revealUI);
+  tap.addEventListener('click', revealUI);
+  setTimeout(revealUI, 1500);
 
-  // Gentle fallback: auto-reveal buttons after 1.5s in case the user doesn't tap
-  setTimeout(() => { if (document.body.contains(tapCatcher)) revealUI(); }, 1500);
-
-  // Actions
+  // Button actions
   document.getElementById('beginArBtn').addEventListener('click', () => {
     window.location.assign(targetForDevice());
   });
   document.getElementById('view3dBtn').addEventListener('click', () => {
-    window.location.assign(HOMEPAGE);
+    window.location.assign(HOME);
   });
 </script>
 </body>

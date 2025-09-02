@@ -8,7 +8,7 @@
     :root { color-scheme: dark; --footer-h: 96px; }
     html, body { height:100%; margin:0; background:#000; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; overflow:hidden; }
 
-    /* Poster stage (no crop, zoomable) */
+    /* Poster stage */
     .stage { position:fixed; left:0; top:0; right:0; height:calc(100vh - var(--footer-h)); background:#000; touch-action:none; overflow:hidden; }
     .poster {
       position:absolute; left:50%; top:50%;
@@ -19,7 +19,7 @@
       will-change:transform; user-select:none; -webkit-user-drag:none; pointer-events:none;
     }
 
-    /* Footer actions (never cover poster) */
+    /* Footer */
     .footer {
       position:fixed; left:0; right:0; bottom:0; height:var(--footer-h);
       display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
@@ -33,16 +33,17 @@
     }
     .actions { display:flex; gap:12px; align-items:center; justify-content:center; }
 
-    /* Buttons / links */
+    /* Buttons */
     .btn, .btn-link {
       appearance:none; border:0; padding:12px 18px; border-radius:9999px; cursor:pointer; font-weight:700;
-      background:#2b91ff; color:#fff; box-shadow:0 8px 22px rgba(43,145,255,.35); text-decoration:none; display:inline-block;
+      background:#2b91ff; color:#fff; box-shadow:0 8px 22px rgba(43,145,255,.35);
+      text-decoration:none; display:inline-block;
     }
     .link {
       background:transparent; color:#eaf1ff; opacity:.9; text-decoration:underline; font-weight:600; padding:8px 0; border:0;
     }
 
-    /* Reset zoom */
+    /* Reset */
     .reset {
       position:fixed; right:12px; top:calc(12px + env(safe-area-inset-top, 0px));
       z-index:2; font-size:12px; color:#cfe2ff; background:rgba(0,0,0,.35);
@@ -50,107 +51,101 @@
       cursor:pointer;
     }
 
-    /* iOS instructional overlay (shows after Mula AR tapped on iOS) */
-    .overlay {
-      position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:5;
-      background:rgba(0,0,0,.55); backdrop-filter:blur(2px);
+    /* Instruction modal */
+    .modal {
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:6;
+      background:rgba(0,0,0,.7); backdrop-filter:blur(4px);
     }
-    .overlay.visible { display:flex; }
-    .overlay-card {
-      max-width:90%; text-align:center; color:#fff;
-      background:rgba(10,14,22,.9); border:1px solid rgba(255,255,255,.15);
-      border-radius:16px; padding:16px 14px;
-      box-shadow:0 12px 28px rgba(0,0,0,.45);
+    .modal.visible { display:flex; }
+    .modal-card {
+      background:#111; color:#fff; padding:20px; border-radius:14px; max-width:320px; text-align:center;
+      border:1px solid rgba(255,255,255,.2); box-shadow:0 8px 24px rgba(0,0,0,.5);
     }
-    .overlay-icon {
-      font-size:28px; line-height:1; margin-bottom:8px;
-      filter: drop-shadow(0 0 10px rgba(43,145,255,.5));
+    .modal svg { width:40px; height:40px; margin-bottom:8px; fill:#fff; filter:drop-shadow(0 0 8px rgba(43,145,255,.5)); }
+    .modal p { font-size:15px; margin:10px 0 16px; }
+    .modal button {
+      background:#2b91ff; color:#fff; border:0; border-radius:9999px; padding:10px 18px; font-weight:700; cursor:pointer;
+      box-shadow:0 6px 18px rgba(43,145,255,.35);
     }
-    .overlay-text {
-      font-size:14px; opacity:.95;
-      text-shadow:0 0 6px rgba(255,255,255,.45), 0 0 10px rgba(43,145,255,.25);
-    }
-
-    .hidden { display:none !important; }
   </style>
 </head>
 <body>
-  <!-- Zoom / pan poster -->
-  <div id="stage" class="stage" aria-label="Poster boleh dizum">
-    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=12" alt="Poster Menara Berkembar PETRONAS" />
+  <!-- Poster -->
+  <div id="stage" class="stage">
+    <img id="poster" class="poster" src="https://dhukanestapha.github.io/kl-ar/assets/poster.jpg?v=13" alt="Poster Menara Berkembar PETRONAS" />
   </div>
 
-  <!-- Reset zoom -->
-  <div id="reset" class="reset" title="Tetap semula zum">Tetap Semula</div>
+  <div id="reset" class="reset">Tetap Semula</div>
 
-  <!-- iOS Quick Look link (real rel="ar" trigger) -->
-  <a id="iosArLink" class="btn-link hidden" rel="ar" href="https://dhukanestapha.github.io/kl-ar/assets/PETRONAS_TWIN_TOWER.usdz">Mula AR</a>
-
-  <!-- Instructional overlay for iOS -->
-  <div id="iosOverlay" class="overlay" role="dialog" aria-live="polite" aria-label="Arahan iOS">
-    <div class="overlay-card" onclick="this.parentElement.classList.remove('visible')">
-      <div class="overlay-icon">🛸</div>
-      <div class="overlay-text">
-        Dalam Quick Look, <strong>ketik ikon AR</strong> untuk hidupkan kamera.
-      </div>
+  <!-- Modal for iOS instruction -->
+  <div id="iosModal" class="modal">
+    <div class="modal-card">
+      <!-- Cube icon (SVG) -->
+      <svg viewBox="0 0 24 24"><path d="M12 2L3 7v10l9 5 9-5V7l-9-5zm0 2.18L18.82 7 12 10.82 5.18 7 12 4.18zM5 8.74l6 3.46v6.06l-6-3.34V8.74zm8 9.52v-6.06l6-3.46v6.12l-6 3.4z"/></svg>
+      <p>Bagi pengguna iPhone, ketik ikon <strong>AR</strong> berbentuk kiub untuk hidupkan kamera.</p>
+      <button id="okBtn">OK</button>
     </div>
   </div>
 
-  <!-- Footer actions -->
-  <footer class="footer" role="group" aria-label="Tindakan">
+  <!-- Footer -->
+  <footer class="footer">
     <div class="hint">Tekan di sini untuk melihat model 3D</div>
     <div class="actions" id="actions"></div>
-    <div class="hint" style="font-size:12px; opacity:.9;">
-      iPhone: Quick Look akan dibuka — ketik ikon <strong>AR</strong> untuk hidupkan kamera.<br/>
-      Android: Scene Viewer dibuka terus dalam mod AR.
-    </div>
   </footer>
 
 <script>
-  // ===== Konfigurasi =====
+  // ===== Config =====
   const BASE = 'https://dhukanestapha.github.io/kl-ar';
-  const GLB  = BASE + '/assets/petronas_twin_tower.glb';   // Android
-  const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';  // iOS
+  const GLB  = BASE + '/assets/petronas_twin_tower.glb';
+  const USDZ = BASE + '/assets/PETRONAS_TWIN_TOWER.usdz';
   const HOME = BASE + '/';
 
-  // Detect platform + browsers
+  // Detect
   const ua = navigator.userAgent || navigator.vendor || window.opera;
   const isAndroid = /Android/i.test(ua);
   const isIOS     = /iPhone|iPad|iPod/i.test(ua);
   const isChrome  = /Chrome\/\d+/i.test(ua) && !/Edg\//i.test(ua);
 
-  // Android Scene Viewer (AR-only)
+  // Scene Viewer (Android)
   const enc = encodeURIComponent;
   const sceneViewerHttps = 'https://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) + '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS');
   const sceneViewerIntent = 'intent://arvr.google.com/scene-viewer/1.0?file=' + enc(GLB) + '&mode=ar_only&title=' + enc('Menara Berkembar PETRONAS') +
     '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=' + enc(sceneViewerHttps) + ';end;';
 
-  // Build actions per platform
+  // UI Elements
   const actions = document.getElementById('actions');
-  const iosLink = document.getElementById('iosArLink');
-  const iosOverlay = document.getElementById('iosOverlay');
+  const iosModal = document.getElementById('iosModal');
+  const okBtn = document.getElementById('okBtn');
 
   if (isIOS) {
-    // Show real rel="ar" as the main CTA
-    iosLink.classList.remove('hidden');
-    actions.appendChild(iosLink);
+    // Show button that triggers modal instead of direct rel="ar"
+    const begin = document.createElement('button');
+    begin.className = 'btn';
+    begin.textContent = 'Mula AR';
+    begin.addEventListener('click', () => {
+      iosModal.classList.add('visible');
+    });
+    actions.appendChild(begin);
 
     const view3d = document.createElement('button');
-    view3d.id = 'view3dBtn';
     view3d.className = 'link';
     view3d.textContent = 'Lihat 3D';
     view3d.addEventListener('click', () => window.location.assign(HOME));
     actions.appendChild(view3d);
 
-    // When user taps Mula AR, show a short overlay reminder as Quick Look opens
-    iosLink.addEventListener('click', () => {
-      iosOverlay.classList.add('visible');
-      setTimeout(() => iosOverlay.classList.remove('visible'), 2000);
-      // Note: Quick Look opens immediately; overlay may flash briefly (intended coaching)
+    okBtn.addEventListener('click', () => {
+      iosModal.classList.remove('visible');
+      // Launch Quick Look after OK
+      const link = document.createElement('a');
+      link.setAttribute('rel','ar');
+      link.setAttribute('href',USDZ);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
     });
+
   } else if (isAndroid) {
     const begin = document.createElement('button');
-    begin.id = 'beginArBtn';
     begin.className = 'btn';
     begin.textContent = 'Mula AR';
     begin.addEventListener('click', () => {
@@ -160,21 +155,20 @@
     actions.appendChild(begin);
 
     const view3d = document.createElement('button');
-    view3d.id = 'view3dBtn';
     view3d.className = 'link';
     view3d.textContent = 'Lihat 3D';
     view3d.addEventListener('click', () => window.location.assign(HOME));
     actions.appendChild(view3d);
+
   } else {
     const view3d = document.createElement('button');
-    view3d.id = 'view3dBtn';
     view3d.className = 'btn';
     view3d.textContent = 'Lihat 3D';
     view3d.addEventListener('click', () => window.location.assign(HOME));
     actions.appendChild(view3d);
   }
 
-  // ===== Pinch-to-zoom & pan =====
+  // ===== Poster zoom/pan (same as before) =====
   const stage  = document.getElementById('stage');
   const poster = document.getElementById('poster');
   const reset  = document.getElementById('reset');
